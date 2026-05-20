@@ -87,7 +87,7 @@ function detectDevServer() {
       return `http://localhost:${port}`;
     } catch {}
   }
-  return `http://localhost:3000`;
+  return null;
 }
 
 // ── HTML UI ───────────────────────────────────────────────────────────────────
@@ -406,6 +406,22 @@ function startServer(baseUrl, routes) {
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 const baseUrl = detectDevServer();
+
+if (!baseUrl) {
+  console.error(`
+❌ Dev server가 실행되지 않았습니다.
+
+   확인한 포트: ${BASE_PORTS.join(', ')}
+
+   먼저 프론트엔드를 실행하세요:
+     npm run dev
+
+   그 다음 다시 실행:
+     node ~/.agents/skills/visual-edit/tools/visual-annotate.js
+`);
+  process.exit(1);
+}
+
 const routes = detectRoutes();
 
 console.log(`\n🔍 Dev server: ${baseUrl}`);
