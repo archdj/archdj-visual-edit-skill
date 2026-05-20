@@ -17,7 +17,7 @@ Launch the visual annotation tool. This opens a browser showing **all pages** â€
 node ~/.agents/skills/visual-edit/tools/visual-annotate.js
 ```
 
-Run from the **project root**. On Windows: `node %USERPROFILE%\.agents\skills\visual-edit\tools\visual-annotate.js`
+Run from the **project root**. `~` works on both macOS/Linux and Windows (PowerShell 5+).
 
 The tool auto-detects the dev server (tries ports 3000, 5173, 8080, 4200â€¦) and all pages, then opens `http://localhost:3099`.
 
