@@ -41,7 +41,9 @@ If the dev server isn't running yet, tell the user to start it first (`npm run d
 - 여러 페이지를 넘나들며 박스 추가 가능 (사이드바에 배지로 개수 표시)
 - "Claude에게 전송" → `.visual-edit-annotations.json` 저장
 
-### 3. After submission — read and act on annotations
+### 3. After submission — act immediately
+
+The tool prints the annotations to stdout and exits. When you see `VISUAL-EDIT-SUBMIT:` in the terminal output, **start editing immediately without waiting for the user to ask**.
 
 Read `.visual-edit-annotations.json` from the project root:
 

@@ -387,11 +387,29 @@ function startServer(baseUrl, routes) {
       let body = '';
       req.on('data', chunk => body += chunk);
       req.on('end', () => {
-        fs.writeFileSync(OUTPUT_FILE, body, 'utf8');
-        console.log(`\n✅ 어노테이션 저장됨: ${OUTPUT_FILE}`);
-        console.log(`   Claude가 이 파일을 읽고 수정을 시작합니다.\n`);
+        const payload = JSON.parse(body);
+        fs.writeFileSync(OUTPUT_FILE, JSON.stringify(payload, null, 2), 'utf8');
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ ok: true }));
+
+        // Print annotations to stdout so Claude can read and act immediately
+        const totalCount = payload.reduce((sum, p) => sum + p.annotations.length, 0);
+        console.log(`\n${'─'.repeat(60)}`);
+        console.log(`VISUAL-EDIT-SUBMIT: ${totalCount}개 어노테이션 전송됨`);
+        console.log(`${'─'.repeat(60)}`);
+        payload.forEach(({ route, annotations }) => {
+          console.log(`\n📄 ${route}`);
+          annotations.forEach((a, i) => {
+            const comment = a.comment.trim() || '(코멘트 없음)';
+            console.log(`  #${i + 1} [x:${Math.round(a.x)} y:${Math.round(a.y)} ${Math.round(a.w)}×${Math.round(a.h)}] → "${comment}"`);
+          });
+        });
+        console.log(`\n${'─'.repeat(60)}`);
+        console.log(`파일: ${OUTPUT_FILE}`);
+        console.log(`${'─'.repeat(60)}\n`);
+
+        // Shut down after 1s so Claude sees the output
+        setTimeout(() => process.exit(0), 1000);
       });
     } else {
       res.writeHead(404);
