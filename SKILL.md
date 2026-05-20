@@ -7,93 +7,64 @@ description: Use this skill when the user is building or iterating on a frontend
 
 A workflow for building frontends iteratively with screenshot-based feedback. The user writes a prompt, Claude generates code, the user previews it in a browser, annotates a screenshot (draws a red box around "this section", writes "make this bigger"), and Claude edits precisely that region without disturbing the rest.
 
-## Step 0: Page selection (run this first, every time)
+## Step 0: 어노테이션 툴 실행 (run this first, every time)
 
-Before anything else, discover what pages exist in the project and let the user pick one.
+Launch the visual annotation tool. This opens a browser showing **all pages** — the user draws boxes and leaves comments on any page, then submits. Claude reads the result and edits.
 
-### 1. Detect the framework
+### 1. Run the tool
 
-Check for these files in priority order:
-
-| File | Framework |
-|---|---|
-| `next.config.*` | Next.js |
-| `nuxt.config.*` | Nuxt |
-| `vite.config.*` + `src/pages/` | React/Vue (Vite with pages) |
-| `vite.config.*` | React/Vue/Svelte (Vite) |
-| `*.html` at root | Static HTML |
-
-### 2. Find page files
-
-| Framework | Pattern |
-|---|---|
-| Next.js App Router | `src/app/**/page.tsx` (or `.jsx`, `.js`) |
-| Next.js Pages Router | `pages/**/*.tsx` — exclude `_app`, `_document`, `api/` |
-| React Vite | `src/pages/**/*.tsx`, `src/views/**/*.tsx` |
-| Vue / Nuxt | `src/pages/**/*.vue`, `pages/**/*.vue` |
-| Static HTML | `**/*.html` |
-
-If none match, open the router config (`App.tsx`, `router.tsx`, `routes.ts`) and extract route → component mappings.
-
-### 3. Present the numbered list
-
-```
-어떤 페이지를 수정할까요?
-
-1. /                  → src/app/page.tsx
-2. /about             → src/app/about/page.tsx
-3. /dashboard         → src/app/dashboard/page.tsx
-4. /settings          → src/app/settings/page.tsx
-─────────────────────────────────────
-0. 전체 (글로벌 테마/토큰 수정)
-
-번호를 입력하세요:
+```bash
+node ~/.agents/skills/visual-edit/tools/visual-annotate.js
 ```
 
-Rules:
-- Sort by route depth, then alphabetically
-- More than 10 pages → group by prefix (`/dashboard/*`) and ask if they want to expand
-- Option 0 "전체" triggers a global edit (tokens/theme only — see `references/edit-scope.md`)
+Run from the **project root**. On Windows: `node %USERPROFILE%\.agents\skills\visual-edit\tools\visual-annotate.js`
 
-### 4. Load page context and show section checklist
+The tool auto-detects the dev server (tries ports 3000, 5173, 8080, 4200…) and all pages, then opens `http://localhost:3099`.
 
-Once the user picks a page:
-1. Read that page file
-2. Identify all components it imports (one level deep)
-3. Scan for sections: `SECTION:` markers, component names, semantic HTML landmarks (`<header>`, `<section id="...">`, etc.)
-4. Show the **Section Checklist**:
+If the dev server isn't running yet, tell the user to start it first (`npm run dev`), then re-run the tool.
+
+### 2. What the annotation UI looks like
 
 ```
-📄 /dashboard → src/app/dashboard/page.tsx
-
-수정할 섹션을 선택하세요:
-
-  [ ] 1. Hero          → components/Hero.tsx (lines 1–52)
-  [ ] 2. Features      → components/Features.tsx (lines 1–88)
-  [ ] 3. Pricing       → components/Pricing.tsx (lines 1–134)
-  [ ] 4. Testimonials  → components/Testimonials.tsx (lines 1–67)
-  [ ] 5. Footer        → components/Footer.tsx (lines 1–40)
-
-번호 입력 (예: 1,3) 또는 스크린샷에 박스 그려서 붙여넣기:
+┌─ 사이드바 ─────────┐  ┌─ 페이지 미리보기 (실제 iframe) ──────────┐  ┌─ 코멘트 ──────┐
+│  /           [2]  │  │                                         │  │  ● #1         │
+│  /about           │  │   실제 페이지가 여기 표시됨               │  │  "헤더 색상   │
+│  /dashboard  [1]  │  │                                         │  │   바꿔주세요" │
+│  /settings        │  │   드래그로 박스 그리기                    │  │               │
+│                   │  │   박스마다 번호 레이블 자동 부여           │  │  ● #2         │
+│  [Claude에게 전송] │  │                                         │  │  "간격 넓게"  │
+└───────────────────┘  └─────────────────────────────────────────┘  └───────────────┘
 ```
 
-**선택 방법 두 가지:**
+- 사이드바에서 페이지 클릭 → 해당 페이지 iframe으로 로드
+- 드래그로 박스 그리기 → 오른쪽 패널에서 코멘트 입력
+- 여러 페이지를 넘나들며 박스 추가 가능 (사이드바에 배지로 개수 표시)
+- "Claude에게 전송" → `.visual-edit-annotations.json` 저장
 
-- **번호 입력**: `1,3` → Hero와 Pricing이 수정 대상으로 체크됨
-- **스크린샷 + 박스**: 박스가 그려진 이미지를 붙여넣으면 Claude가 해당 영역을 섹션 목록과 매핑해서 자동 체크
+### 3. After submission — read and act on annotations
 
-체크된 섹션이 생기면:
+Read `.visual-edit-annotations.json` from the project root:
+
+```json
+[
+  {
+    "route": "/dashboard",
+    "annotations": [
+      { "id": 1, "x": 120, "y": 80, "w": 400, "h": 200, "comment": "헤더 배경색 바꿔줘", "color": "#ef4444" },
+      { "id": 2, "x": 50, "y": 350, "w": 600, "h": 150, "comment": "카드 간격 더 넓게", "color": "#3b82f6" }
+    ]
+  }
+]
 ```
-✅ 선택된 섹션:
-  ✔ 1. Hero
-  ✔ 3. Pricing
 
-각 섹션을 순서대로 수정합니다. Hero부터 시작할까요?
-```
+For each annotation:
+1. Open the page file for that route
+2. Map `(x, y, w, h)` to the nearest section (`SECTION:` markers, component names, semantic landmarks)
+3. State the target: "annotation #1 → `<section id="hero">` in `Hero.tsx`"
+4. Apply the edit — region-scoped (see `references/edit-scope.md`)
+5. Move to the next annotation
 
-If the preview server isn't running → read `references/setup.md`.
-
-Type `/visual-edit` again at any time to go back to page selection.
+Type `/visual-edit` again at any time to re-launch the tool.
 
 ---
 
