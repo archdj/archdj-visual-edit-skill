@@ -49,10 +49,23 @@ function detectRoutes() {
     if (routes.length) return routes;
   }
 
-  // Static HTML
-  const htmlFiles = fs.readdirSync(cwd).filter(f => f.endsWith('.html'));
-  if (htmlFiles.length) {
-    return htmlFiles.map(f => ({ route: '/' + f, file: f }));
+  // Static HTML — check root first, then common web root dirs
+  const htmlCandidateDirs = [
+    cwd,
+    ...['web', 'public', 'src', 'dist', 'static', 'client', 'frontend', 'www']
+      .map(d => path.join(cwd, d))
+      .filter(d => fs.existsSync(d)),
+  ];
+
+  for (const dir of htmlCandidateDirs) {
+    const htmlFiles = fs.readdirSync(dir).filter(f => f.endsWith('.html'));
+    if (htmlFiles.length) {
+      const rel = path.relative(cwd, dir);
+      return htmlFiles.map(f => ({
+        route: '/' + (f === 'index.html' ? '' : f),
+        file: rel ? `${rel}/${f}` : f,
+      }));
+    }
   }
 
   return [{ route: '/', file: '(root)' }];
