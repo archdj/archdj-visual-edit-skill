@@ -2,6 +2,25 @@
 
 When the user sends an annotated screenshot, treat it as structured input with known conventions. Don't guess silently — interpret, state the interpretation, ask if unclear, then edit.
 
+## Mapping boxes to the section checklist
+
+If the skill is already in a session with a known page (section checklist was shown), map each annotated box to the nearest section:
+
+1. **Estimate vertical position** of the box in the screenshot (top 20% = header/hero, middle = content sections, bottom = footer)
+2. **Cross-reference with the section list** from the loaded page context
+3. **Auto-check those sections** and show:
+
+```
+스크린샷에서 2개 박스를 감지했습니다:
+
+  ✔ 2. Features   → 위쪽 박스 (빨간, "간격 늘려줘")
+  ✔ 4. Testimonials → 아래쪽 박스 (파란, 텍스트 없음)
+
+맞나요? (y / 번호 수정):
+```
+
+If the page context isn't loaded yet (user sent a screenshot before page selection), run Step 0 first: ask which page they're on, then map.
+
 ## Common annotation conventions
 
 Most users use one of a handful of markup styles. Recognize these:
